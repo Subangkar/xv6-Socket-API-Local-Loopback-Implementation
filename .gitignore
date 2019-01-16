@@ -16,3 +16,5 @@ mkfs
 .gdbinit
 
 *.gitpatch
+
+cmake-build-debug/
