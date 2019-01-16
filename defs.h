@@ -121,6 +121,14 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+// sock.c
+void            sinit(void);
+int             listen(int);
+int             connect(int, const char*);
+int             send(int, const char*, int);
+int             recv(int, char*, int);
+int             disconnect(int);
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 

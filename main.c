@@ -4,6 +4,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "sock.h"
 #include "x86.h"
 
 static void startothers(void);

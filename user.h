@@ -23,6 +23,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int listen(int);
+int connect(int, const char* host);
+int send(int, const char*, int);
+int recv(int, char*, int);
+int disconnect(int);
 
 // ulib.c
 int stat(const char*, struct stat*);
