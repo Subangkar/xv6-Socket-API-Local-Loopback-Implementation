@@ -1,5 +1,5 @@
 
-enum sockstate { CLOSED, LISTENING, CONNECTED };
+enum sockstate { CLOSED, OPENED, LISTENING, CONNECTED };
 
 
 

@@ -18,10 +18,12 @@ struct {
 	struct sock sock[NSOCK];
 } stable;
 
+//bool ports[NPORT];//reverse map to check or look for an unassigned port fast but memory costly, needs to think more
+
 int countSock;
 int nextsid;
 
-//==================helper functions declaration==========
+//============================helper functions declaration====================
 /// sets value to socket struct
 void setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *owner, int lPort, int rPort,
                   void *chan, bool hasUnreadData, char *buff, bool overWriteToDef);
@@ -29,7 +31,8 @@ void setsockvalue(struct sock *socket, int sid, enum sockstate state, struct pro
 /// returns socket @ port, NULL if no socket exists
 struct sock *getsock(int port);
 
-/// allocates a new socket @ port, NULL if any socket already exists @ that port
+/// allocates a new socket @ port, NULL if any socket already exists @ that port.
+/// increments count of current socket
 struct sock *allocsock(int lport);
 
 /// frees socket by clearing buffer, false if no socket exists or not called by owner
@@ -37,8 +40,9 @@ bool freesock(struct sock *socket);
 
 /// resets socket values to default
 void resetsock(struct sock *socket);
-//========================================================
 
+/// returns a random free port
+int getfreeport();
 void
 sinit(void) {
 	initlock(&stable.lock, "stable");
@@ -46,7 +50,7 @@ sinit(void) {
 	nextsid = 0;
 }
 
-/// new ServerSocket(port)
+/// new ServerSocket(port) // from server
 int
 listen(int lport) {
 	DISCARD_INV_PORT(lport);
@@ -61,29 +65,51 @@ listen(int lport) {
 	}
 #endif
 	acquire(&stable.lock);
-	if (allocsock(lport) == NULL) {
+	struct sock *s;
+	if ((s = allocsock(lport)) == NULL) {
 		// trying to listen on opened port
 		release(&stable.lock);
 		return E_ACCESS_DENIED;
 	}
+	s->state = LISTENING;// set socket state to listening for server
 	release(&stable.lock);
 	return 0;
 }
 
-/// new Socket(hostname,port)
+/// new Socket(hostname,port) // from client
 int
 connect(int rport, const char *host) {
 	DISCARD_INV_PORT(rport);
 
-	//
-	// Allow connection to "localhost" or "127.0.0.1" host only
-	//
 	if (strncmp(host, "localhost", (uint) strlen(host)) != 0
 	    && strncmp(host, "127.0.0.1", (uint) strlen(host)) != 0) {
+		// Allow connection to "localhost" or "127.0.0.1" host only
 		return E_INVALID_ARG;
 	}
 
-	return 0;
+	acquire(&stable.lock);
+
+	struct sock *local;
+	struct sock *remote = getsock(rport);
+	int lport = getfreeport();
+
+	if (lport == INV_PORT) return E_FAIL; // no free ports
+	if (remote == NULL) return E_NOTFOUND; // no socket assigned on remote port
+	if (remote->state != LISTENING)
+		return E_WRONG_STATE; // if server is not ready to accept new connection or already connected
+
+	if ((local = allocsock(lport)) == NULL) { // create a socket on free local port
+		return E_FAIL;// nSocket limits crossed
+	}
+
+	local->state = remote->state = CONNECTED;
+	local->rPort = remote->lPort;
+	remote->rPort = local->lPort;
+	remote->hasUnreadData = local->hasUnreadData = false;
+
+	release(&stable.lock);
+
+	return lport;
 }
 
 int
@@ -109,12 +135,14 @@ disconnect(int lport) {
 }
 
 
+//============================helper functions definition====================
+
 struct sock *
 getsock(int port) {
 	if (port >= 0 && port < NPORT) {
 		struct sock *s;
 		for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
-			if (s->lPort == port && s->state != CLOSED) {
+			if (s->state != CLOSED && s->lPort == port) {
 				return s;
 			}
 		}
@@ -143,7 +171,7 @@ allocsock(int lport) {
 	struct sock *s;
 	for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 		if (s->state == CLOSED) {
-			setsockvalue(s, nextsid, LISTENING, myproc(), lport, SOCK_RPORT_DEF, SOCK_CHAN_DEF, false, "", true);
+			setsockvalue(s, nextsid, OPENED, myproc(), lport, SOCK_RPORT_DEF, SOCK_CHAN_DEF, false, "", true);
 
 			countSock++;
 			nextsid++;
@@ -178,3 +206,13 @@ setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *ow
 	}
 }
 
+/// basically returns the first free port from the last
+int
+getfreeport() {
+	for (int port = NPORT; port; --port) {
+		if (getsock(port) == NULL) return port;
+	}
+	return INV_PORT;
+}
+
+//============================================================================
