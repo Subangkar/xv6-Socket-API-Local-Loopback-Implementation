@@ -7,6 +7,7 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "signalcodes.h"
 
 //
 // TODO: Create a structure to maintain a list of sockets

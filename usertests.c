@@ -11,7 +11,7 @@
 char buf[8192];
 char name[3];
 char *echoargv[] = { "echo", "ALL", "TESTS", "PASSED", 0 };
-int stdout = 1;
+//int stdout = 1;
 
 // does chdir() call iput(p->cwd) in a transaction?
 void

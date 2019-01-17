@@ -5,69 +5,73 @@
 #include "mmu.h"
 #include "x86.h"
 #include "proc.h"
+#include "signalcodes.h"
 
 int
-sys_listen(void)
-{
-  int port = 0;
+sys_listen(void) {
+	int port = 0;
 
-  //
-  // TODO: Write your code to get and validate port no.
-  //
-
-  return listen(port);
+	if (argint(0, &port) < 0)
+		return E_INVALID_ARG;
+#ifdef SO_DEBUG
+	cprintf(">> %d\n", port);
+#endif
+	return listen(port);
 }
 
 int
-sys_connect(void)
-{
-  int port = 0;
-  char *host = 0;
+sys_connect(void) {
+	int port = 0;
+	char *host = 0;
 
-  //
-  // TODO: Write your code to get and validate port no., host.
-  // Allow connection to "localhost" or "127.0.0.1" host only
-  //
-
-  return connect(port, host);
+	if (argint(0, &port) < 0 || argstr(1, &host) < 0)
+		return E_INVALID_ARG;
+#ifdef SO_DEBUG
+	cprintf(">> %d %s\n", port, host);
+#endif
+	return connect(port, host);
 }
 
 int
-sys_send(void)
-{
-  int port = 0;
-  char* buf = 0;
-  int n = 0;
+sys_send(void) {
+	int port = 0;
+	char *buf = 0;
+	int n = 0;
 
-  //
-  // TODO: Write your code to get and validate port no., buffer and buffer size
-  //
+	if (argint(0, &port) < 0 || argstr(1, &buf) < 0 || argint(0, &n) < 0)
+		return E_INVALID_ARG;
 
-  return send(port, buf, n);
+#ifdef SO_DEBUG
+	cprintf(">> %d %s %d\n", port, buf, n);
+#endif
+
+	return send(port, buf, n);
 }
 
 int
-sys_recv(void)
-{
-  int port = 0;
-  char* buf = 0;
-  int n = 0;
+sys_recv(void) {
+	int port = 0;
+	char *buf = 0;
+	int n = 0;
 
-  //
-  // TODO: Write your code to get and validate port no., buffer and buffer size
-  //
+	if (argint(0, &port) < 0 || argptr(1, &buf, sizeof(char *)) < 0 || argint(0, &n) < 0)
+		return E_INVALID_ARG;
 
-  return recv(port, buf, n);
+#ifdef SO_DEBUG
+	cprintf(">> %d %s %d\n", port, buf, n);
+#endif
+	return recv(port, buf, n);
 }
 
 int
-sys_disconnect(void)
-{
-  int port = 0;
+sys_disconnect(void) {
+	int port = 0;
 
-  //
-  // TODO: Write your code to get and validate port no.
-  //
+	if (argint(0, &port) < 0)
+		return E_INVALID_ARG;
+#ifdef SO_DEBUG
+	cprintf(">> %d\n", port);
+#endif
 
-  return disconnect(port);
+	return disconnect(port);
 }

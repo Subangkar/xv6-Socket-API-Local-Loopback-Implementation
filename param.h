@@ -1,5 +1,6 @@
 #define NPORT       128  // maximum number of ports
 #define NSOCK        32  // maximum number of sockets
+#define SBUFFSIZE   128  // size of buffer
 #define NPROC        64  // maximum number of processes
 #define KSTACKSIZE 4096  // size of per-process kernel stack
 #define NCPU          8  // maximum number of CPUs

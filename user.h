@@ -23,10 +23,18 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+/// opens socket @ local-port and enables a local port to be connected from any remote socket
+/// local-port
 int listen(int);
+/// connects to the remote port @ host is listening
+/// 1:remote-port, 2:host
 int connect(int, const char* host);
+/// 1:local-port, 2:buffer, 3:size-of-buffer
 int send(int, const char*, int);
+/// 1:local-port, 2:buffer, 3:size-of-buffer
 int recv(int, char*, int);
+/// disconnects from the remote port and closes the socket @ local-port
+/// local-port
 int disconnect(int);
 
 // ulib.c
@@ -42,3 +50,8 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+
+// console macro
+#define stdin 0
+#define stdout 1

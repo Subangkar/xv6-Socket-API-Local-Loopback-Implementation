@@ -18,3 +18,5 @@ mkfs
 *.gitpatch
 
 cmake-build-debug/
+
+*.xml

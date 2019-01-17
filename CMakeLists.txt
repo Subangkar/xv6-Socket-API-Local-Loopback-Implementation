@@ -77,4 +77,4 @@ add_executable(xv6_SocketAPI
         vm.c
         wc.c
         x86.h
-        zombie.c)
+        zombie.c signalcodes.h)
