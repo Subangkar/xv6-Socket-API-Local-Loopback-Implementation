@@ -43,6 +43,14 @@ void resetsock(struct sock *socket);
 
 /// returns a random free port
 int getfreeport();
+
+/// blocks the process
+void blockprocess(struct proc* process);
+
+/// releases associated process
+void releaseprocess(struct proc* process);
+//============================================================================
+
 void
 sinit(void) {
 	initlock(&stable.lock, "stable");
@@ -116,6 +124,25 @@ int
 send(int lport, const char *data, int n) {
 	DISCARD_INV_PORT(lport);
 
+	acquire(&stable.lock);
+
+	struct sock *local = getsock(lport);
+
+	if (local == NULL) return E_NOTFOUND;
+	if (local->owner != myproc()) return E_ACCESS_DENIED; // accessed from other process
+	if (local->state != CONNECTED) return E_WRONG_STATE;
+
+	struct sock* remote = getsock(local->rPort);
+
+	if (remote == NULL) return E_NOTFOUND;
+	if (remote->state != CONNECTED) return E_WRONG_STATE;
+
+	while (remote->hasUnreadData) blockprocess(myproc()); // while or if not sure ???
+
+	strncpy(remote->recvbuffer,data,strlen(data));
+
+	release(&stable.lock);
+
 	return 0;
 }
 
@@ -123,7 +150,7 @@ send(int lport, const char *data, int n) {
 int
 recv(int lport, char *data, int n) {
 	DISCARD_INV_PORT(lport);
-	
+
 	return 0;
 }
 
