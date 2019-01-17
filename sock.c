@@ -45,14 +45,11 @@ void resetsock(struct sock *socket);
 /// returns a random free port
 int getfreeport();
 
-/// blocks the process
-void blockprocess(struct proc *process);
-
-/// releases associated process
-void releaseprocess(struct proc *process);
-
 /// returns and releases the lock
 int retsockfunction(int code);
+
+/// sends close signal to remote socket on local's one close like TCP
+bool sendFINsignal(struct sock *socket);
 //============================================================================
 
 void
@@ -73,6 +70,8 @@ listen(int lport) {
 		return retsockfunction(E_FAIL);
 	}
 #ifdef SO_DEBUG
+	cprintf(">> Server  listening on %d\n", lport);
+
 	if (countSock > NSOCK) {
 		cprintf(">> countSock invalid: %d\n", countSock);
 		return retsockfunction(E_FAIL);
@@ -104,6 +103,10 @@ connect(int rport, const char *host) {
 	struct sock *remote = getsock(rport);
 	int lport = getfreeport();
 
+#ifdef SO_DEBUG
+	cprintf(">> %d client to be assigned port %d: \n", lport);
+#endif
+
 	if (lport == INV_PORT) return retsockfunction(E_FAIL); // no free ports
 	if (remote == NULL) return retsockfunction(E_NOTFOUND); // no socket assigned on remote port
 	if (remote->state != LISTENING)
@@ -118,9 +121,7 @@ connect(int rport, const char *host) {
 	remote->rPort = local->lPort;
 	remote->hasfullbuffer = local->hasfullbuffer = false;
 
-	release(&stable.lock);
-
-	return lport;
+	return retsockfunction(lport);
 }
 
 /// socket.getos().write(data)
@@ -141,11 +142,21 @@ send(int lport, const char *data, int n) {
 	if (remote == NULL) return retsockfunction(E_NOTFOUND);
 	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
 
-	while (remote->hasfullbuffer) blockprocess(myproc()); // while or if not sure ???
+#ifdef SO_FUNC_DEBUG
+	cprintf(">> %d.send() obtained remote %d\n", local->lPort, remote->lPort);
+#endif
+
+	while (remote->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
 	strncpy(remote->recvbuffer, data, n);
 	remote->hasfullbuffer = true;
-	releaseprocess(remote->owner);
+	wakeup(local);
+
+#ifdef SO_DEBUG
+	cprintf(">> %d sent msg to %d: %s\n", local->lPort, remote->lPort, data);
+	if (lport != remote->rPort)
+		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
+#endif
 
 	return retsockfunction(0);
 }
@@ -163,16 +174,33 @@ recv(int lport, char *data, int n) {
 	if (local->owner != myproc()) return retsockfunction(E_ACCESS_DENIED); // accessed from other process
 	if (local->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
 
+#ifdef SO_FUNC_DEBUG
+	cprintf(">> %d.recv() \n", lport);
+#endif
+
 	struct sock *remote = getsock(local->rPort);
 
 	if (remote == NULL) return retsockfunction(E_NOTFOUND);
 	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
 
-	while (!local->hasfullbuffer) blockprocess(myproc()); // while or if not sure ???
+#ifdef SO_FUNC_DEBUG
+	cprintf(">> %d.recv() obtained remote %d\n", local->lPort, remote->lPort);
+#endif
+
+	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
 	strncpy(data, local->recvbuffer, n);
 	local->hasfullbuffer = false;
-	releaseprocess(local->owner);
+	wakeup(local);
+
+#ifdef SO_DEBUG
+	cprintf(">> %d received msg from %d: %s\n", local->lPort, remote->lPort, data);
+	if (lport != remote->rPort)
+		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
+#endif
+
+	if (!strncmp(data, SOCK_MSG_FIN, (uint) strlen(SOCK_MSG_FIN)))
+		removesock(local);
 
 	return retsockfunction(0);
 }
@@ -194,7 +222,7 @@ disconnect(int lport) {
 
 	if (remote == NULL) return retsockfunction(E_NOTFOUND);
 	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
-	remote->state = CLOSED;
+	sendFINsignal(remote);
 
 #ifdef SO_DEBUG
 	if (lport != remote->rPort)
@@ -212,6 +240,9 @@ getsock(int port) {
 		struct sock *s;
 		for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 			if (s->state != CLOSED && s->lPort == port) {
+//#ifdef SO_DEBUG
+//				cprintf(">> found ",s->lPort);
+//#endif
 				return s;
 			}
 		}
@@ -244,6 +275,9 @@ allocsock(int lport) {
 
 			countSock++;
 			nextsid++;
+#ifdef SO_DEBUG
+			cprintf(">> Adding socket %d, #Socket:%d\n", s->sid, countSock);
+#endif
 			return s;
 		}
 	}
@@ -278,7 +312,7 @@ setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *ow
 /// basically returns the first free port from the last
 int
 getfreeport() {
-	for (int port = NPORT; port; --port) {
+	for (int port = NPORT - 1; port; --port) {
 		if (getsock(port) == NULL) return port;
 	}
 	return INV_PORT;
@@ -287,6 +321,9 @@ getfreeport() {
 bool
 removesock(struct sock *socket) {
 	if (socket == NULL) return false;
+#ifdef SO_DEBUG
+	cprintf(">> Removing socket %d, #Socket:%d\n", socket->sid, countSock - 1);
+#endif
 	resetsock(socket);
 	--countSock;
 	return true;
@@ -296,6 +333,17 @@ int
 retsockfunction(int code) {
 	release(&stable.lock);
 	return code;
+}
+
+bool
+sendFINsignal(struct sock *socket) {
+	if (socket == NULL) return false;
+	if (socket->state != CLOSED) {
+		strncpy(socket->recvbuffer, SOCK_MSG_FIN, strlen(SOCK_MSG_FIN));
+		socket->hasfullbuffer = true;
+		return true;
+	}
+	return false;
 }
 
 //============================================================================

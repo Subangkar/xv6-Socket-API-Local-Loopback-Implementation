@@ -33,3 +33,5 @@ struct sock {
 #define SOCK_HASDATA_DEF false
 #define SOCK_LPORT_DEF INV_PORT
 #define SOCK_RPORT_DEF INV_PORT
+
+#define SOCK_MSG_FIN "$TERMINATE$"

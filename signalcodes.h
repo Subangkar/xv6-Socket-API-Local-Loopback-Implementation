@@ -6,7 +6,9 @@
 #define XV6_SOCKETAPI_SIGNALCODES_H
 
 // socket function debug
+//#define SO_ARG_DEBUG
 #define SO_DEBUG
+//#define SO_FUNC_DEBUG
 
 #define NULL 0
 

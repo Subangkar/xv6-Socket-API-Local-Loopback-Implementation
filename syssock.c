@@ -13,7 +13,7 @@ sys_listen(void) {
 
 	if (argint(0, &port) < 0)
 		return E_MISSING_ARG;
-#ifdef SO_DEBUG
+#ifdef SO_ARG_DEBUG
 	cprintf(">> %d\n", port);
 #endif
 	return listen(port);
@@ -26,7 +26,7 @@ sys_connect(void) {
 
 	if (argint(0, &port) < 0 || argstr(1, &host) < 0)
 		return E_MISSING_ARG;
-#ifdef SO_DEBUG
+#ifdef SO_ARG_DEBUG
 	cprintf(">> %d %s\n", port, host);
 #endif
 	return connect(port, host);
@@ -41,7 +41,7 @@ sys_send(void) {
 	if (argint(0, &port) < 0 || argstr(1, &buf) < 0 || argint(0, &n) < 0)
 		return E_MISSING_ARG;
 
-#ifdef SO_DEBUG
+#ifdef SO_ARG_DEBUG
 	cprintf(">> %d %s %d\n", port, buf, n);
 #endif
 
@@ -57,7 +57,7 @@ sys_recv(void) {
 	if (argint(0, &port) < 0 || argptr(1, &buf, sizeof(char *)) < 0 || argint(2, &n) < 0)
 		return E_MISSING_ARG;
 
-#ifdef SO_DEBUG
+#ifdef SO_ARG_DEBUG
 	cprintf(">> %d %s %d\n", port, buf, n);
 #endif
 	return recv(port, buf, n);
@@ -69,7 +69,7 @@ sys_disconnect(void) {
 
 	if (argint(0, &port) < 0)
 		return E_MISSING_ARG;
-#ifdef SO_DEBUG
+#ifdef SO_ARG_DEBUG
 	cprintf(">> %d\n", port);
 #endif
 
