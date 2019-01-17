@@ -155,7 +155,7 @@ send(int lport, const char *data, int n) {
 #ifdef SO_DEBUG
 	cprintf(">> %d sent msg to %d: %s\n", local->lPort, remote->lPort, data);
 	if (lport != remote->rPort)
-		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
+		cprintf(">> %d Fatal Bug: local:%d remotes_remote:%d\n", lport, lport, remote->rPort);
 #endif
 
 	return retsockfunc(0);
@@ -180,7 +180,9 @@ recv(int lport, char *data, int n) {
 
 	struct sock *remote = getsock(local->rPort);
 
-	if (remote == NULL) return retsockfunc(E_NOTFOUND);
+//	if (remote == NULL && !strncmp(data, SOCK_MSG_FIN, (uint) strlen(SOCK_MSG_FIN)))
+//		removesock(local);// check whether socket closed by sending FIN pkt
+	if (remote == NULL) return retsockfunc(E_NOTFOUND);// FIN is blocked here
 	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
 #ifdef SO_FUNC_DEBUG
@@ -199,8 +201,6 @@ recv(int lport, char *data, int n) {
 		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
 #endif
 
-	if (!strncmp(data, SOCK_MSG_FIN, (uint) strlen(SOCK_MSG_FIN)))
-		removesock(local);
 
 	return retsockfunc(0);
 }
