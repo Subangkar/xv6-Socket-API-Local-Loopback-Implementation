@@ -8,6 +8,11 @@
 // socket function debug
 #define SO_DEBUG
 
+#define NULL 0
+
+// error code for missing required arguments
+#define E_MISSING_ARG -1
+
 // error codes for socket
 #define E_NOTFOUND -1025
 #define E_ACCESS_DENIED -1026

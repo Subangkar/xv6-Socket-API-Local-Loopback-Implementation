@@ -12,7 +12,7 @@ sys_listen(void) {
 	int port = 0;
 
 	if (argint(0, &port) < 0)
-		return E_INVALID_ARG;
+		return E_MISSING_ARG;
 #ifdef SO_DEBUG
 	cprintf(">> %d\n", port);
 #endif
@@ -25,7 +25,7 @@ sys_connect(void) {
 	char *host = 0;
 
 	if (argint(0, &port) < 0 || argstr(1, &host) < 0)
-		return E_INVALID_ARG;
+		return E_MISSING_ARG;
 #ifdef SO_DEBUG
 	cprintf(">> %d %s\n", port, host);
 #endif
@@ -39,7 +39,7 @@ sys_send(void) {
 	int n = 0;
 
 	if (argint(0, &port) < 0 || argstr(1, &buf) < 0 || argint(0, &n) < 0)
-		return E_INVALID_ARG;
+		return E_MISSING_ARG;
 
 #ifdef SO_DEBUG
 	cprintf(">> %d %s %d\n", port, buf, n);
@@ -54,8 +54,8 @@ sys_recv(void) {
 	char *buf = 0;
 	int n = 0;
 
-	if (argint(0, &port) < 0 || argptr(1, &buf, sizeof(char *)) < 0 || argint(0, &n) < 0)
-		return E_INVALID_ARG;
+	if (argint(0, &port) < 0 || argptr(1, &buf, sizeof(char *)) < 0 || argint(2, &n) < 0)
+		return E_MISSING_ARG;
 
 #ifdef SO_DEBUG
 	cprintf(">> %d %s %d\n", port, buf, n);
@@ -68,7 +68,7 @@ sys_disconnect(void) {
 	int port = 0;
 
 	if (argint(0, &port) < 0)
-		return E_INVALID_ARG;
+		return E_MISSING_ARG;
 #ifdef SO_DEBUG
 	cprintf(">> %d\n", port);
 #endif
