@@ -45,10 +45,10 @@ void resetsock(struct sock *socket);
 int getfreeport();
 
 /// blocks the process
-void blockprocess(struct proc* process);
+void blockprocess(struct proc *process);
 
 /// releases associated process
-void releaseprocess(struct proc* process);
+void releaseprocess(struct proc *process);
 //============================================================================
 
 void
@@ -132,14 +132,16 @@ send(int lport, const char *data, int n) {
 	if (local->owner != myproc()) return E_ACCESS_DENIED; // accessed from other process
 	if (local->state != CONNECTED) return E_WRONG_STATE;
 
-	struct sock* remote = getsock(local->rPort);
+	struct sock *remote = getsock(local->rPort);
 
 	if (remote == NULL) return E_NOTFOUND;
 	if (remote->state != CONNECTED) return E_WRONG_STATE;
 
 	while (remote->hasUnreadData) blockprocess(myproc()); // while or if not sure ???
 
-	strncpy(remote->recvbuffer,data,strlen(data));
+	strncpy(remote->recvbuffer, data, strlen(data));
+	remote->hasUnreadData = true;
+	releaseprocess(remote->owner);
 
 	release(&stable.lock);
 
@@ -150,6 +152,27 @@ send(int lport, const char *data, int n) {
 int
 recv(int lport, char *data, int n) {
 	DISCARD_INV_PORT(lport);
+
+	acquire(&stable.lock);
+
+	struct sock *local = getsock(lport);
+
+	if (local == NULL) return E_NOTFOUND;
+	if (local->owner != myproc()) return E_ACCESS_DENIED; // accessed from other process
+	if (local->state != CONNECTED) return E_WRONG_STATE;
+
+	struct sock *remote = getsock(local->rPort);
+
+	if (remote == NULL) return E_NOTFOUND;
+	if (remote->state != CONNECTED) return E_WRONG_STATE;
+
+	while (!local->hasUnreadData) blockprocess(myproc()); // while or if not sure ???
+
+	strncpy(data, local->recvbuffer, strlen(local->recvbuffer));
+	local->hasUnreadData = false;
+	releaseprocess(local->owner);
+
+	release(&stable.lock);
 
 	return 0;
 }
