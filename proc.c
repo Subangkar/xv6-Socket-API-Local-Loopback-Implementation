@@ -247,6 +247,8 @@ exit(void)
   end_op();
   curproc->cwd = 0;
 
+  closeprocsocks(curproc);
+
   acquire(&ptable.lock);
 
   // Parent might be sleeping in wait().
@@ -485,6 +487,7 @@ kill(int pid)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->killed = 1;
+      closeprocsocks(p);
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
         p->state = RUNNABLE;

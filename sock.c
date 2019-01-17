@@ -36,7 +36,7 @@ struct sock *getsock(int port);
 struct sock *allocsock(int lport);
 
 /// removes socket ,false if no socket exists or not called by owner
-/// decrements count of current socket
+/// decrements count of current socket and also releases locks
 bool removesock(struct sock *socket);
 
 /// resets socket values to default
@@ -50,6 +50,9 @@ int retsockfunc(int code);
 
 /// sends close signal to remote socket on local's one close like TCP
 bool sendFINsignal(struct sock *socket);
+
+/// returns the first socket in the table associated with the process, NULL if no such found
+struct sock *getprocsock(struct proc *process);
 //============================================================================
 
 void
@@ -201,7 +204,6 @@ recv(int lport, char *data, int n) {
 		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
 #endif
 
-
 	return retsockfunc(0);
 }
 
@@ -322,6 +324,7 @@ removesock(struct sock *socket) {
 #ifdef SO_DEBUG
 	cprintf(">> Removing socket %d, #Socket:%d\n", socket->sid, countSock - 1);
 #endif
+	wakeup(socket);// wakeup all processes sleeping on this lock
 	resetsock(socket);
 	--countSock;
 	return true;
@@ -342,6 +345,35 @@ sendFINsignal(struct sock *socket) {
 		return true;
 	}
 	return false;
+}
+
+struct sock *
+getprocsock(struct proc *process) {
+	struct sock *s;
+	for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
+		if (s->state != CLOSED && s->owner == process) {
+			return s;
+		}
+	}
+	return NULL;
+}
+
+//============================================================================
+
+
+//===========================Additional functions=============================
+
+/// close all socket owned by this process
+void
+closeprocsocks(struct proc *process) {
+	if (process == NULL) return;
+	struct sock *s;
+	acquire(&stable.lock);
+	while ((s = getprocsock(process)) != NULL) {
+		removesock(s);
+//		disconnect(s->lPort);
+	}
+	release(&stable.lock);
 }
 
 //============================================================================

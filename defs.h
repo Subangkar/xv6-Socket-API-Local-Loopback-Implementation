@@ -128,6 +128,7 @@ int             connect(int, const char*);
 int             send(int, const char*, int);
 int             recv(int, char*, int);
 int             disconnect(int);
+void            closeprocsocks(struct proc *process);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
