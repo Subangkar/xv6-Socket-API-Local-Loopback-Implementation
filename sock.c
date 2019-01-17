@@ -26,7 +26,7 @@ int nextsid;
 //============================helper functions declaration====================
 /// sets value to socket struct
 void setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *owner, int lPort, int rPort,
-                  void *chan, bool hasUnreadData, char *buff, bool overWriteToDef);
+                  void *chan, bool hasfullbuffer, char *buff, bool overWriteToDef);
 
 /// returns socket @ port, NULL if no socket exists
 struct sock *getsock(int port);
@@ -113,7 +113,7 @@ connect(int rport, const char *host) {
 	local->state = remote->state = CONNECTED;
 	local->rPort = remote->lPort;
 	remote->rPort = local->lPort;
-	remote->hasUnreadData = local->hasUnreadData = false;
+	remote->hasfullbuffer = local->hasfullbuffer = false;
 
 	release(&stable.lock);
 
@@ -137,10 +137,10 @@ send(int lport, const char *data, int n) {
 	if (remote == NULL) return E_NOTFOUND;
 	if (remote->state != CONNECTED) return E_WRONG_STATE;
 
-	while (remote->hasUnreadData) blockprocess(myproc()); // while or if not sure ???
+	while (remote->hasfullbuffer) blockprocess(myproc()); // while or if not sure ???
 
 	strncpy(remote->recvbuffer, data, strlen(data));
-	remote->hasUnreadData = true;
+	remote->hasfullbuffer = true;
 	releaseprocess(remote->owner);
 
 	release(&stable.lock);
@@ -166,10 +166,10 @@ recv(int lport, char *data, int n) {
 	if (remote == NULL) return E_NOTFOUND;
 	if (remote->state != CONNECTED) return E_WRONG_STATE;
 
-	while (!local->hasUnreadData) blockprocess(myproc()); // while or if not sure ???
+	while (!local->hasfullbuffer) blockprocess(myproc()); // while or if not sure ???
 
 	strncpy(data, local->recvbuffer, strlen(local->recvbuffer));
-	local->hasUnreadData = false;
+	local->hasfullbuffer = false;
 	releaseprocess(local->owner);
 
 	release(&stable.lock);
@@ -208,7 +208,7 @@ resetsock(struct sock *socket) {
 //	socket->lPort = SOCK_LPORT_DEF;
 //	socket->rPort = SOCK_RPORT_DEF;
 //	socket->chan = SOCK_CHAN_DEF;
-//	socket->hasUnreadData = SOCK_HASDATA_DEF;
+//	socket->hasfullbuffer = SOCK_HASDATA_DEF;
 //	socket->sid = SOCK_SID_DEF;
 //	strncpy(socket->recvbuffer, SOCK_BUFFER_DEF, 1);
 	setsockvalue(socket, SOCK_SID_DEF, SOCK_STATE_DEF, SOCK_OWNER_DEF, SOCK_LPORT_DEF, SOCK_RPORT_DEF, SOCK_CHAN_DEF,
@@ -233,7 +233,7 @@ allocsock(int lport) {
 
 void
 setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *owner, int lPort, int rPort,
-             void *chan, bool hasUnreadData, char *buff, bool overWriteToDef) {
+             void *chan, bool hasfullbuffer, char *buff, bool overWriteToDef) {
 	if (!socket) return;
 	if (overWriteToDef) {
 		socket->owner = owner;
@@ -241,7 +241,7 @@ setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *ow
 		socket->lPort = lPort;
 		socket->rPort = rPort;
 		socket->chan = chan;
-		socket->hasUnreadData = hasUnreadData;
+		socket->hasfullbuffer = hasfullbuffer;
 		socket->sid = sid;
 		strncpy(socket->recvbuffer, buff, 1);
 	} else {
@@ -250,7 +250,7 @@ setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *ow
 		if (lPort != SOCK_LPORT_DEF) socket->lPort = lPort;
 		if (rPort != SOCK_RPORT_DEF) socket->rPort = rPort;
 		if (chan != SOCK_CHAN_DEF) socket->chan = chan;
-		if (hasUnreadData != SOCK_HASDATA_DEF) socket->hasUnreadData = hasUnreadData;
+		if (hasfullbuffer != SOCK_HASDATA_DEF) socket->hasfullbuffer = hasfullbuffer;
 		if (sid != SOCK_SID_DEF) socket->sid = sid;
 		if (strncmp(buff, SOCK_BUFFER_DEF, 1) != 0) strncpy(socket->recvbuffer, buff, 1);
 	}

@@ -14,7 +14,7 @@ struct sock {
 	struct proc *owner;          // Socket owner process
 
 	char recvbuffer[SBUFFSIZE];  // socket buffer : current buffer size to be determined by EOF
-	bool hasUnreadData;          //
+	bool hasfullbuffer;          //
 
 	int lPort;
 	int rPort;
