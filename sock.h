@@ -9,8 +9,6 @@ struct sock {
 	int sid;                     // Socket ID
 	enum sockstate state;        // Socket's current state
 
-	void *chan;                  // If non-zero, sleeping on chan
-
 	struct proc *owner;          // Socket owner process
 
 	char recvbuffer[SBUFFSIZE];  // socket buffer : current buffer size to be determined by EOF

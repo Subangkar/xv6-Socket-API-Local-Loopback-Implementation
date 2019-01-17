@@ -26,7 +26,7 @@ int nextsid;
 //============================helper functions declaration====================
 /// sets value to socket struct
 void setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *owner, int lPort, int rPort,
-                  void *chan, bool hasfullbuffer, char *buff, bool overWriteToDef);
+                  bool hasfullbuffer, char *buff, bool overWriteToDef);
 
 /// returns socket @ port, NULL if no socket exists
 struct sock *getsock(int port);
@@ -46,7 +46,7 @@ void resetsock(struct sock *socket);
 int getfreeport();
 
 /// returns and releases the lock
-int retsockfunction(int code);
+int retsockfunc(int code);
 
 /// sends close signal to remote socket on local's one close like TCP
 bool sendFINsignal(struct sock *socket);
@@ -67,23 +67,23 @@ listen(int lport) {
 	acquire(&stable.lock);
 
 	if (countSock == NSOCK) {
-		return retsockfunction(E_FAIL);
+		return retsockfunc(E_FAIL);
 	}
 #ifdef SO_DEBUG
 	cprintf(">> Server  listening on %d\n", lport);
 
 	if (countSock > NSOCK) {
 		cprintf(">> countSock invalid: %d\n", countSock);
-		return retsockfunction(E_FAIL);
+		return retsockfunc(E_FAIL);
 	}
 #endif
 	struct sock *s;
 	if ((s = allocsock(lport)) == NULL) {
 		// trying to listen on opened port
-		return retsockfunction(E_ACCESS_DENIED);
+		return retsockfunc(E_ACCESS_DENIED);
 	}
 	s->state = LISTENING;// set socket state to listening for server
-	return retsockfunction(0);
+	return retsockfunc(0);
 }
 
 /// new Socket(hostname,port) // from client
@@ -107,13 +107,13 @@ connect(int rport, const char *host) {
 	cprintf(">> %d client to be assigned port %d: \n", lport);
 #endif
 
-	if (lport == INV_PORT) return retsockfunction(E_FAIL); // no free ports
-	if (remote == NULL) return retsockfunction(E_NOTFOUND); // no socket assigned on remote port
+	if (lport == INV_PORT) return retsockfunc(E_FAIL); // no free ports
+	if (remote == NULL) return retsockfunc(E_NOTFOUND); // no socket assigned on remote port
 	if (remote->state != LISTENING)
-		return retsockfunction(E_WRONG_STATE); // if server is not ready to accept new connection or already connected
+		return retsockfunc(E_WRONG_STATE); // if server is not ready to accept new connection or already connected
 
 	if ((local = allocsock(lport)) == NULL) { // create a socket on free local port
-		return retsockfunction(E_FAIL);// nSocket limits crossed
+		return retsockfunc(E_FAIL);// nSocket limits crossed
 	}
 
 	local->state = remote->state = CONNECTED;
@@ -121,7 +121,7 @@ connect(int rport, const char *host) {
 	remote->rPort = local->lPort;
 	remote->hasfullbuffer = local->hasfullbuffer = false;
 
-	return retsockfunction(lport);
+	return retsockfunc(lport);
 }
 
 /// socket.getos().write(data)
@@ -133,14 +133,14 @@ send(int lport, const char *data, int n) {
 
 	struct sock *local = getsock(lport);
 
-	if (local == NULL) return retsockfunction(E_NOTFOUND);
-	if (local->owner != myproc()) return retsockfunction(E_ACCESS_DENIED); // accessed from other process
-	if (local->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
+	if (local == NULL) return retsockfunc(E_NOTFOUND);
+	if (local->owner != myproc()) return retsockfunc(E_ACCESS_DENIED); // accessed from other process
+	if (local->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
 	struct sock *remote = getsock(local->rPort);
 
-	if (remote == NULL) return retsockfunction(E_NOTFOUND);
-	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
+	if (remote == NULL) return retsockfunc(E_NOTFOUND);
+	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
 #ifdef SO_FUNC_DEBUG
 	cprintf(">> %d.send() obtained remote %d\n", local->lPort, remote->lPort);
@@ -158,7 +158,7 @@ send(int lport, const char *data, int n) {
 		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
 #endif
 
-	return retsockfunction(0);
+	return retsockfunc(0);
 }
 
 /// socket.getis().read()
@@ -170,9 +170,9 @@ recv(int lport, char *data, int n) {
 
 	struct sock *local = getsock(lport);
 
-	if (local == NULL) return retsockfunction(E_NOTFOUND);
-	if (local->owner != myproc()) return retsockfunction(E_ACCESS_DENIED); // accessed from other process
-	if (local->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
+	if (local == NULL) return retsockfunc(E_NOTFOUND);
+	if (local->owner != myproc()) return retsockfunc(E_ACCESS_DENIED); // accessed from other process
+	if (local->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
 #ifdef SO_FUNC_DEBUG
 	cprintf(">> %d.recv() \n", lport);
@@ -180,11 +180,11 @@ recv(int lport, char *data, int n) {
 
 	struct sock *remote = getsock(local->rPort);
 
-	if (remote == NULL) return retsockfunction(E_NOTFOUND);
-	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
+	if (remote == NULL) return retsockfunc(E_NOTFOUND);
+	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
 #ifdef SO_FUNC_DEBUG
-	cprintf(">> %d.recv() obtained remote %d\n", local->lPort, remote->lPort);
+	cprintf(">> %d.recv() has remote %d\n", local->lPort, remote->lPort);
 #endif
 
 	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
@@ -202,7 +202,7 @@ recv(int lport, char *data, int n) {
 	if (!strncmp(data, SOCK_MSG_FIN, (uint) strlen(SOCK_MSG_FIN)))
 		removesock(local);
 
-	return retsockfunction(0);
+	return retsockfunc(0);
 }
 
 /// socket.close()
@@ -214,21 +214,21 @@ disconnect(int lport) {
 
 	struct sock *local = getsock(lport);
 
-	if (local == NULL) return retsockfunction(E_NOTFOUND);
-	if (local->owner != myproc()) return retsockfunction(E_ACCESS_DENIED); // accessed from other process
+	if (local == NULL) return retsockfunc(E_NOTFOUND);
+	if (local->owner != myproc()) return retsockfunc(E_ACCESS_DENIED); // accessed from other process
 	removesock(local);
 
 	struct sock *remote = getsock(local->rPort);
 
-	if (remote == NULL) return retsockfunction(E_NOTFOUND);
-	if (remote->state != CONNECTED) return retsockfunction(E_WRONG_STATE);
+	if (remote == NULL) return retsockfunc(E_NOTFOUND);
+	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 	sendFINsignal(remote);
 
 #ifdef SO_DEBUG
 	if (lport != remote->rPort)
 		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
 #endif
-	return retsockfunction(0);
+	return retsockfunc(0);
 }
 
 
@@ -261,7 +261,7 @@ resetsock(struct sock *socket) {
 //	socket->hasfullbuffer = SOCK_HASDATA_DEF;
 //	socket->sid = SOCK_SID_DEF;
 //	strncpy(socket->recvbuffer, SOCK_BUFFER_DEF, 1);
-	setsockvalue(socket, SOCK_SID_DEF, SOCK_STATE_DEF, SOCK_OWNER_DEF, SOCK_LPORT_DEF, SOCK_RPORT_DEF, SOCK_CHAN_DEF,
+	setsockvalue(socket, SOCK_SID_DEF, SOCK_STATE_DEF, SOCK_OWNER_DEF, SOCK_LPORT_DEF, SOCK_RPORT_DEF,
 	             SOCK_HASDATA_DEF, SOCK_BUFFER_DEF, true);
 }
 
@@ -271,7 +271,7 @@ allocsock(int lport) {
 	struct sock *s;
 	for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 		if (s->state == CLOSED) {
-			setsockvalue(s, nextsid, OPENED, myproc(), lport, SOCK_RPORT_DEF, SOCK_CHAN_DEF, false, "", true);
+			setsockvalue(s, nextsid, OPENED, myproc(), lport, SOCK_RPORT_DEF, false, "", true);
 
 			countSock++;
 			nextsid++;
@@ -286,14 +286,13 @@ allocsock(int lport) {
 
 void
 setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *owner, int lPort, int rPort,
-             void *chan, bool hasfullbuffer, char *buff, bool overWriteToDef) {
+             bool hasfullbuffer, char *buff, bool overWriteToDef) {
 	if (!socket) return;
 	if (overWriteToDef) {
 		socket->owner = owner;
 		socket->state = state;
 		socket->lPort = lPort;
 		socket->rPort = rPort;
-		socket->chan = chan;
 		socket->hasfullbuffer = hasfullbuffer;
 		socket->sid = sid;
 		strncpy(socket->recvbuffer, buff, 1);
@@ -302,7 +301,6 @@ setsockvalue(struct sock *socket, int sid, enum sockstate state, struct proc *ow
 		if (state != SOCK_STATE_DEF) socket->state = state;
 		if (lPort != SOCK_LPORT_DEF) socket->lPort = lPort;
 		if (rPort != SOCK_RPORT_DEF) socket->rPort = rPort;
-		if (chan != SOCK_CHAN_DEF) socket->chan = chan;
 		if (hasfullbuffer != SOCK_HASDATA_DEF) socket->hasfullbuffer = hasfullbuffer;
 		if (sid != SOCK_SID_DEF) socket->sid = sid;
 		if (strncmp(buff, SOCK_BUFFER_DEF, 1) != 0) strncpy(socket->recvbuffer, buff, 1);
@@ -330,7 +328,7 @@ removesock(struct sock *socket) {
 }
 
 int
-retsockfunction(int code) {
+retsockfunc(int code) {
 	release(&stable.lock);
 	return code;
 }
