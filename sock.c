@@ -62,7 +62,7 @@ sinit(void) {
 	nextsid = 0;
 }
 
-/// new ServerSocket(port) // from server
+/// new ServerSocket(port).accept() // from server
 int
 listen(int lport) {
 	DISCARD_INV_PORT(lport);
@@ -86,6 +86,8 @@ listen(int lport) {
 		return retsockfunc(E_ACCESS_DENIED);
 	}
 	s->state = LISTENING;// set socket state to listening for server
+	sleep(s, &stable.lock);// wait until any client connects
+
 	return retsockfunc(0);
 }
 
@@ -123,6 +125,7 @@ connect(int rport, const char *host) {
 	local->rPort = remote->lPort;
 	remote->rPort = local->lPort;
 	remote->hasfullbuffer = local->hasfullbuffer = false;
+	wakeup(remote);// wakeup the remote listening server
 
 	return retsockfunc(lport);
 }
