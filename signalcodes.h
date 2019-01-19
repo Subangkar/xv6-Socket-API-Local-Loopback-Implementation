@@ -7,10 +7,11 @@
 
 // socket function debug
 //#define SO_ARG_DEBUG
-#define SO_DEBUG
+//#define SO_DEBUG
 //#define SO_FUNC_DEBUG
 
 #define NULL 0
+#define EXIT_SUCCESS 0
 
 // error code for missing required arguments
 #define E_MISSING_ARG -1

@@ -9,16 +9,14 @@
 #include "proc.h"
 #include "signalcodes.h"
 
-//
-// Should it have locking?
-//
+
+
 
 struct {
 	struct spinlock lock;
 	struct sock sock[NSOCK];
 } stable;
 
-//bool ports[NPORT];//reverse map to check or look for an unassigned port fast but memory costly, needs to think more
 
 int countSock;
 int nextsid;

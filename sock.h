@@ -25,11 +25,9 @@ struct sock {
 
 #define SOCK_SID_DEF -1
 #define SOCK_STATE_DEF CLOSED
-#define SOCK_CHAN_DEF NULL
 #define SOCK_OWNER_DEF NULL
 #define SOCK_BUFFER_DEF ""
 #define SOCK_HASDATA_DEF false
 #define SOCK_LPORT_DEF INV_PORT
 #define SOCK_RPORT_DEF INV_PORT
 
-#define SOCK_MSG_FIN "$TERMINATE$"
