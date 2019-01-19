@@ -48,9 +48,6 @@ int getfreeport();
 /// returns and releases the lock
 int retsockfunc(int code);
 
-/// sends close signal to remote socket on local's one close like TCP
-bool sendFINsignal(struct sock *socket);
-
 /// returns the first socket in the table associated with the process, NULL if no such found
 struct sock *getprocsock(struct proc *process);
 //============================================================================
@@ -148,11 +145,7 @@ send(int lport, const char *data, int n) {
 	if (remote == NULL) return retsockfunc(E_NOTFOUND);
 	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
-#ifdef SO_FUNC_DEBUG
-	cprintf(">> %d.send() obtained remote %d\n", local->lPort, remote->lPort);
-#endif
-
-	while (remote->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
+	if (remote->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
 	if (getsock(local->rPort) == NULL) {// woke up due to deletion of remote
 		removesock(local);
@@ -185,22 +178,12 @@ recv(int lport, char *data, int n) {
 	if (local->owner != myproc()) return retsockfunc(E_ACCESS_DENIED); // accessed from other process
 	if (local->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
-#ifdef SO_FUNC_DEBUG
-	cprintf(">> %d.recv() \n", lport);
-#endif
-
 	struct sock *remote = getsock(local->rPort);
 
-//	if (remote == NULL && !strncmp(data, SOCK_MSG_FIN, (uint) strlen(SOCK_MSG_FIN)))
-//		removesock(local);// check whether socket closed by sending FIN pkt
-	if (remote == NULL) return retsockfunc(E_NOTFOUND);// FIN is blocked here
+	if (remote == NULL) return retsockfunc(E_NOTFOUND);// last sent data can also be blocked here
 	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
 
-#ifdef SO_FUNC_DEBUG
-	cprintf(">> %d.recv() has remote %d\n", local->lPort, remote->lPort);
-#endif
-
-	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
+	if (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
 	strncpy(data, local->recvbuffer, n);
 	*local->recvbuffer = NULL;// empty the buffer after reading
@@ -244,8 +227,7 @@ disconnect(int lport) {
 struct sock *
 getsock(int port) {
 	if (port >= 0 && port < NPORT) {
-		struct sock *s;
-		for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
+		for (struct sock *s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 			if (s->state != CLOSED && s->lPort == port) {
 				return s;
 			}
@@ -256,15 +238,6 @@ getsock(int port) {
 
 void
 resetsock(struct sock *socket) {
-//	if (socket == NULL) return;
-//	socket->owner = SOCK_OWNER_DEF;
-//	socket->state = SOCK_STATE_DEF;
-//	socket->lPort = SOCK_LPORT_DEF;
-//	socket->rPort = SOCK_RPORT_DEF;
-//	socket->chan = SOCK_CHAN_DEF;
-//	socket->hasfullbuffer = SOCK_HASDATA_DEF;
-//	socket->sid = SOCK_SID_DEF;
-//	strncpy(socket->recvbuffer, SOCK_BUFFER_DEF, 1);
 	setsockvalue(socket, SOCK_SID_DEF, SOCK_STATE_DEF, SOCK_OWNER_DEF, SOCK_LPORT_DEF, SOCK_RPORT_DEF,
 	             SOCK_HASDATA_DEF, SOCK_BUFFER_DEF, true);
 }
@@ -272,8 +245,7 @@ resetsock(struct sock *socket) {
 struct sock *
 allocsock(int lport) {
 	if (lport < 0 || lport >= NPORT || getsock(lport)) return NULL;
-	struct sock *s;
-	for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
+	for (struct sock *s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 		if (s->state == CLOSED) {
 			setsockvalue(s, nextsid, OPENED, myproc(), lport, SOCK_RPORT_DEF, false, "", true);
 
@@ -338,21 +310,9 @@ retsockfunc(int code) {
 	return code;
 }
 
-bool
-sendFINsignal(struct sock *socket) {
-	if (socket == NULL) return false;
-	if (socket->state != CLOSED) {
-		strncpy(socket->recvbuffer, SOCK_MSG_FIN, strlen(SOCK_MSG_FIN));
-		socket->hasfullbuffer = true;
-		return true;
-	}
-	return false;
-}
-
 struct sock *
 getprocsock(struct proc *process) {
-	struct sock *s;
-	for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
+	for (struct sock *s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 		if (s->state != CLOSED && s->owner == process) {
 			return s;
 		}
@@ -373,7 +333,7 @@ closeprocsocks(struct proc *process) {
 	acquire(&stable.lock);
 	while ((s = getprocsock(process)) != NULL) {
 		removesock(s);
-//		disconnect(s->lPort);
+//		disconnect(s->lPort);// introduces recursive lock
 	}
 	release(&stable.lock);
 }
