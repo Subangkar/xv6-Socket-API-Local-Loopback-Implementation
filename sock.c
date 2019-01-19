@@ -152,7 +152,10 @@ send(int lport, const char *data, int n) {
 	cprintf(">> %d.send() obtained remote %d\n", local->lPort, remote->lPort);
 #endif
 
+	int rport = remote->rPort;
 	while (remote->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
+
+	if (getsock(rport) == NULL) removesock(local);// if remote is deleted & called wakeup before being deleted
 
 	strncpy(remote->recvbuffer, data, n);
 	remote->hasfullbuffer = true;
@@ -194,8 +197,10 @@ recv(int lport, char *data, int n) {
 #ifdef SO_FUNC_DEBUG
 	cprintf(">> %d.recv() has remote %d\n", local->lPort, remote->lPort);
 #endif
-
+	int rport = remote->rPort;
 	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
+
+	if (getsock(rport) == NULL) removesock(local);// if remote is deleted & called wakeup before being deleted
 
 	strncpy(data, local->recvbuffer, n);
 	local->hasfullbuffer = false;
