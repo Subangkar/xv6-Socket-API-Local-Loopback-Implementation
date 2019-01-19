@@ -109,7 +109,7 @@ connect(int rport, const char *host) {
 	int lport = getfreeport();
 
 #ifdef SO_DEBUG
-	cprintf(">> %d client to be assigned port %d: \n", lport);
+	cprintf(">> %d client to be assigned port %d: \n", lport, lport);
 #endif
 
 	if (lport == INV_PORT) return retsockfunc(E_FAIL); // no free ports
@@ -202,14 +202,16 @@ recv(int lport, char *data, int n) {
 
 	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
+	strncpy(data, local->recvbuffer, n);
+	*local->recvbuffer = NULL;// empty the buffer after reading
+	local->hasfullbuffer = false;
+	wakeup(local);
+
+	// after reading last unread buffer if connection is reset then close
 	if (getsock(local->rPort) == NULL) {// woke up due to deletion of remote
 		removesock(local);
 		return retsockfunc(E_CONNECTION_RESET_BY_REMOTE);
 	}
-
-	strncpy(data, local->recvbuffer, n);
-	local->hasfullbuffer = false;
-	wakeup(local);
 
 #ifdef SO_DEBUG
 	cprintf(">> %d received msg from %d: %s\n", local->lPort, remote->lPort, data);
@@ -245,9 +247,6 @@ getsock(int port) {
 		struct sock *s;
 		for (s = stable.sock; s < &stable.sock[NSOCK]; ++s) {
 			if (s->state != CLOSED && s->lPort == port) {
-//#ifdef SO_DEBUG
-//				cprintf(">> found ",s->lPort);
-//#endif
 				return s;
 			}
 		}
