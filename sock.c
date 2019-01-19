@@ -152,10 +152,12 @@ send(int lport, const char *data, int n) {
 	cprintf(">> %d.send() obtained remote %d\n", local->lPort, remote->lPort);
 #endif
 
-	int rport = remote->rPort;
 	while (remote->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
-	if (getsock(rport) == NULL) removesock(local);// if remote is deleted & called wakeup before being deleted
+	if (getsock(local->rPort) == NULL) {// woke up due to deletion of remote
+		removesock(local);
+		return retsockfunc(E_CONNECTION_RESET_BY_REMOTE);
+	}
 
 	strncpy(remote->recvbuffer, data, n);
 	remote->hasfullbuffer = true;
@@ -197,10 +199,13 @@ recv(int lport, char *data, int n) {
 #ifdef SO_FUNC_DEBUG
 	cprintf(">> %d.recv() has remote %d\n", local->lPort, remote->lPort);
 #endif
-	int rport = remote->rPort;
+
 	while (!local->hasfullbuffer) sleep(remote, &stable.lock);// while or if not sure ???
 
-	if (getsock(rport) == NULL) removesock(local);// if remote is deleted & called wakeup before being deleted
+	if (getsock(local->rPort) == NULL) {// woke up due to deletion of remote
+		removesock(local);
+		return retsockfunc(E_CONNECTION_RESET_BY_REMOTE);
+	}
 
 	strncpy(data, local->recvbuffer, n);
 	local->hasfullbuffer = false;
@@ -228,16 +233,6 @@ disconnect(int lport) {
 	if (local->owner != myproc()) return retsockfunc(E_ACCESS_DENIED); // accessed from other process
 	removesock(local);
 
-	struct sock *remote = getsock(local->rPort);
-
-	if (remote == NULL) return retsockfunc(E_NOTFOUND);
-	if (remote->state != CONNECTED) return retsockfunc(E_WRONG_STATE);
-	sendFINsignal(remote);
-
-#ifdef SO_DEBUG
-	if (lport != remote->rPort)
-		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
-#endif
 	return retsockfunc(0);
 }
 
