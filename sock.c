@@ -67,14 +67,7 @@ listen(int lport) {
 	if (countSock == NSOCK) {
 		return retsockfunc(E_FAIL);
 	}
-#ifdef SO_DEBUG
-	cprintf(">> Server  listening on %d\n", lport);
 
-	if (countSock > NSOCK) {
-		cprintf(">> countSock invalid: %d\n", countSock);
-		return retsockfunc(E_FAIL);
-	}
-#endif
 	struct sock *s;
 	if ((s = allocsock(lport)) == NULL) {
 		// trying to listen on opened port
@@ -102,10 +95,6 @@ connect(int rport, const char *host) {
 	struct sock *local;
 	struct sock *remote = getsock(rport);
 	int lport = getfreeport();
-
-#ifdef SO_DEBUG
-	cprintf(">> %d client to be assigned port %d: \n", lport, lport);
-#endif
 
 	if (lport == INV_PORT) return retsockfunc(E_FAIL); // no free ports
 	if (remote == NULL) return retsockfunc(E_NOTFOUND); // no socket assigned on remote port
@@ -154,12 +143,6 @@ send(int lport, const char *data, int n) {
 	remote->hasfullbuffer = true;
 	wakeup(local);
 
-#ifdef SO_DEBUG
-	cprintf(">> %d sent msg to %d: %s\n", local->lPort, remote->lPort, data);
-	if (lport != remote->rPort)
-		cprintf(">> %d Fatal Bug: local:%d remotes_remote:%d\n", lport, lport, remote->rPort);
-#endif
-
 	return retsockfunc(0);
 }
 
@@ -193,12 +176,6 @@ recv(int lport, char *data, int n) {
 		removesock(local);
 		return retsockfunc(E_CONNECTION_RESET_BY_REMOTE);
 	}
-
-#ifdef SO_DEBUG
-	cprintf(">> %d received msg from %d: %s\n", local->lPort, remote->lPort, data);
-	if (lport != remote->rPort)
-		cprintf(">> Fatal Bug: local:%d remotes_remote:%d\n", lport, remote->rPort);
-#endif
 
 	return retsockfunc(0);
 }
