@@ -1,5 +1,5 @@
 Socket Application Programming Interface (API) implementation in [xv6 Operating System of MIT](https://github.com/mit-pdos/xv6-public) which extends its functionality
-to support localhost networking.  
+to support socket programming via localhost networking.  
   
 System calls (added):
 ------------------------------- 
